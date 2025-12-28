@@ -1,6 +1,15 @@
-# yt2mp3
+# grabbo
 
-A command-line tool to download YouTube videos as MP3 files.
+Download audio from YouTube, SoundCloud, Bandcamp, and 1800+ sites.
+
+## Supported Sites
+
+- YouTube (videos, playlists, shorts, music)
+- SoundCloud (tracks, playlists, users)
+- Bandcamp (tracks, albums, artists)
+- Mixcloud (mixes, podcasts)
+- Vimeo, TikTok, Twitter/X, Instagram, Twitch
+- And 1800+ more via [yt-dlp](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md)
 
 ## Installation
 
@@ -11,20 +20,22 @@ Requires Python 3.10+ and ffmpeg.
 brew install ffmpeg
 
 # Clone and install
-git clone https://github.com/stefanlenoach/yt2mp3.git
-cd yt2mp3
+git clone https://github.com/stefanlenoach/grabbo.git
+cd grabbo
 pip install -e .
 ```
 
 ## Usage
 
-### Download a video
+### Download audio
 
 ```bash
-yt2mp3 download "https://youtube.com/watch?v=..."
+grabbo download "https://youtube.com/watch?v=..."
+grabbo download "https://soundcloud.com/artist/track"
+grabbo download "https://artist.bandcamp.com/track/song"
 
 # Or use the shortcut
-yt2mp3 d "https://youtube.com/watch?v=..."
+grabbo d "URL"
 ```
 
 ### Options
@@ -44,77 +55,78 @@ Extract a specific portion of the audio:
 
 ```bash
 # 20 seconds starting at 0:12
-yt2mp3 d "URL" -s 12 -d 20
+grabbo d "URL" -s 12 -d 20
 
 # From 1:30 to 2:00
-yt2mp3 d "URL" -s 1:30 -e 2:00
+grabbo d "URL" -s 1:30 -e 2:00
 
 # Various time formats work
-yt2mp3 d "URL" -s 1m30s -d 30s
-yt2mp3 d "URL" -s 1:02:30 -e 1:05:00
+grabbo d "URL" -s 1m30s -d 30s
+grabbo d "URL" -s 1:02:30 -e 1:05:00
 ```
 
-### Search and download
+### Search and download (YouTube)
 
 Search YouTube without needing a URL:
 
 ```bash
 # Search and show results
-yt2mp3 search "lofi hip hop"
+grabbo search "lofi hip hop"
 
 # Download the first result directly
-yt2mp3 search "song name" -d 1
+grabbo search "song name" -d 1
 
 # Show more results
-yt2mp3 search "query" -n 20
+grabbo search "query" -n 20
 ```
 
 ### Playlist downloads
 
-Download entire YouTube playlists:
+Download entire playlists (YouTube, SoundCloud, Bandcamp):
 
 ```bash
-# Download all videos in a playlist
-yt2mp3 playlist "https://youtube.com/playlist?list=..."
+# Download all tracks in a playlist
+grabbo playlist "https://youtube.com/playlist?list=..."
+grabbo playlist "https://soundcloud.com/artist/sets/playlist-name"
 
-# Download first 5 videos only
-yt2mp3 playlist "URL" -n 5
+# Download first 5 tracks only
+grabbo playlist "URL" -n 5
 
 # Preview playlist contents without downloading
-yt2mp3 playlist "URL" --info
+grabbo playlist "URL" --info
 ```
 
 ### Batch downloads
 
-Download multiple videos at once:
+Download multiple URLs at once:
 
 ```bash
 # Multiple URLs as arguments
-yt2mp3 batch "url1" "url2" "url3"
+grabbo batch "url1" "url2" "url3"
 
 # From a file (one URL per line)
-yt2mp3 batch -f urls.txt
+grabbo batch -f urls.txt
 
 # Combine both
-yt2mp3 batch "url1" -f more_urls.txt -q 320
+grabbo batch "url1" -f more_urls.txt -q 320
 ```
 
 ### Clipboard watcher
 
-Auto-detect YouTube URLs when you copy them:
+Auto-detect URLs when you copy them:
 
 ```bash
 # Interactive mode - prompts before each download
-yt2mp3 watch
+grabbo watch
 
 # Auto-download mode - no prompts
-yt2mp3 watch -y
+grabbo watch -y
 
 # With options
-yt2mp3 watch -y -q 320
+grabbo watch -y -q 320
 ```
 
-Keep a terminal running with `yt2mp3 watch`, then just copy any YouTube URL from your browser. It will automatically detect and download it.
+Supports YouTube, SoundCloud, Bandcamp, Mixcloud, Vimeo, TikTok, Twitter/X, Instagram, and Twitch URLs.
 
 ### Trim silence
 
@@ -122,16 +134,16 @@ Remove silence from the beginning and end of tracks:
 
 ```bash
 # Trim a specific file
-yt2mp3 trim "song.mp3"
+grabbo trim "song.mp3"
 
 # Trim all files in output directory
-yt2mp3 trim --all
+grabbo trim --all
 
 # Only trim start (keep ending)
-yt2mp3 trim song.mp3 --no-end
+grabbo trim song.mp3 --no-end
 
 # More aggressive threshold (-40dB instead of -50dB)
-yt2mp3 trim song.mp3 -t -40
+grabbo trim song.mp3 -t -40
 ```
 
 ### Download transcripts
@@ -140,32 +152,32 @@ Download captions/transcripts only (no audio):
 
 ```bash
 # Download transcript as plain text
-yt2mp3 transcript "https://youtube.com/watch?v=..."
+grabbo transcript "https://youtube.com/watch?v=..."
 
 # Or use the shortcut
-yt2mp3 t "https://youtube.com/watch?v=..."
+grabbo t "https://youtube.com/watch?v=..."
 
 # Different formats
-yt2mp3 t "URL" -f txt   # Plain text (default)
-yt2mp3 t "URL" -f srt   # SRT subtitles with timestamps
-yt2mp3 t "URL" -f json  # JSON with timestamps
+grabbo t "URL" -f txt   # Plain text (default)
+grabbo t "URL" -f srt   # SRT subtitles with timestamps
+grabbo t "URL" -f json  # JSON with timestamps
 
 # Download transcripts for entire playlist
-yt2mp3 t "PLAYLIST_URL"
+grabbo t "PLAYLIST_URL"
 
 # First 10 videos only
-yt2mp3 t "PLAYLIST_URL" -n 10
+grabbo t "PLAYLIST_URL" -n 10
 
 # Preview playlist without downloading
-yt2mp3 t "PLAYLIST_URL" --info
+grabbo t "PLAYLIST_URL" --info
 
 # Different language
-yt2mp3 t "URL" -l es    # Spanish
+grabbo t "URL" -l es    # Spanish
 ```
 
 Transcripts are organized by creator and playlist:
 ```
-~/yt2mp3-transcripts/
+~/grabbo-transcripts/
 ├── Huberman Lab/
 │   └── Huberman Lab Podcast/
 │       ├── Episode 1.txt
@@ -179,27 +191,27 @@ Transcripts are organized by creator and playlist:
 
 ```bash
 # List downloaded files
-yt2mp3 list
+grabbo list
 
 # Show current config
-yt2mp3 config
+grabbo config
 
-# Change default output directory (default: ~/yt2mp3)
-yt2mp3 set-dir ~/Music/YouTube
+# Change default output directory (default: ~/grabbo)
+grabbo set-dir ~/Music/Downloads
 
 # Open output folder in Finder
-yt2mp3 open
+grabbo open
 ```
 
 ## All Commands
 
 | Command | Description |
 |---------|-------------|
-| `download` / `d` | Download a YouTube video as MP3 |
+| `download` / `d` | Download audio from any supported URL |
 | `search` | Search YouTube and download results |
 | `playlist` | Download entire playlists |
-| `batch` | Download multiple videos |
-| `watch` | Watch clipboard for YouTube URLs |
+| `batch` | Download multiple URLs |
+| `watch` | Watch clipboard for URLs |
 | `trim` | Remove silence from start/end of files |
 | `transcript` / `t` | Download captions/transcripts only |
 | `list` | List downloaded MP3 files |

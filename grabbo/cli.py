@@ -1,4 +1,4 @@
-"""CLI interface for yt2mp3."""
+"""CLI interface for grabbo."""
 import click
 from pathlib import Path
 
@@ -7,16 +7,12 @@ from . import downloader
 
 @click.group()
 def cli():
-    """Download YouTube videos as MP3 files.
+    """Download audio from YouTube, SoundCloud, Bandcamp, and 1800+ sites.
 
-    Usage: yt2mp3 download <youtube-url>
+    Usage: grabbo download <url>
 
-    Commands:
-      download  Download a YouTube video as MP3
-      list      List downloaded MP3 files
-      set-dir   Set the default output directory
-      config    Show current configuration
-      open      Open the output directory in Finder
+    Supports YouTube, SoundCloud, Bandcamp, Mixcloud, Vimeo, TikTok,
+    Twitter/X, Instagram, Twitch, and many more.
     """
     pass
 
@@ -34,10 +30,10 @@ def download(url, output, quality, name, start_time, duration, end_time):
 
     \b
     Examples:
-      yt2mp3 download "URL"                    # Full video
-      yt2mp3 download "URL" -s 12 -d 20        # 20 sec starting at 0:12
-      yt2mp3 download "URL" -s 1:30 -e 2:00    # From 1:30 to 2:00
-      yt2mp3 download "URL" -s 1m30s -d 30s    # Same as above
+      grabbo download "URL"                    # Full video
+      grabbo download "URL" -s 12 -d 20        # 20 sec starting at 0:12
+      grabbo download "URL" -s 1:30 -e 2:00    # From 1:30 to 2:00
+      grabbo download "URL" -s 1m30s -d 30s    # Same as above
     """
     output_dir = Path(output) if output else None
     quality_int = int(quality)
@@ -113,8 +109,8 @@ def batch(urls, file_path, output, quality):
     Pass URLs directly or use a file:
 
     \b
-    yt2mp3 batch "url1" "url2" "url3"
-    yt2mp3 batch -f urls.txt
+    grabbo batch "url1" "url2" "url3"
+    grabbo batch -f urls.txt
     """
     url_list = list(urls)
 
@@ -225,9 +221,9 @@ def watch(quality, output, yes, interval):
 
     \b
     Examples:
-      yt2mp3 watch              # Interactive mode
-      yt2mp3 watch -y           # Auto-download without prompts
-      yt2mp3 watch -q 320 -y    # Auto-download at 320kbps
+      grabbo watch              # Interactive mode
+      grabbo watch -y           # Auto-download without prompts
+      grabbo watch -q 320 -y    # Auto-download at 320kbps
     """
     from . import watcher
 
@@ -278,9 +274,9 @@ def search(query, count, download_idx, quality):
 
     \b
     Examples:
-      yt2mp3 search "lofi hip hop"           # Search and show results
-      yt2mp3 search "song name" -d 1         # Download first result
-      yt2mp3 search "artist song" -d 1 -q 320
+      grabbo search "lofi hip hop"           # Search and show results
+      grabbo search "song name" -d 1         # Download first result
+      grabbo search "artist song" -d 1 -q 320
     """
     query_str = " ".join(query)
     click.echo(f"Searching: {query_str}...")
@@ -320,7 +316,7 @@ def search(query, count, download_idx, quality):
             raise SystemExit(1)
     else:
         click.echo()
-        click.echo("Use -d N to download a result, e.g.: yt2mp3 search \"query\" -d 1")
+        click.echo("Use -d N to download a result, e.g.: grabbo search \"query\" -d 1")
 
 
 @cli.command("playlist")
@@ -334,9 +330,9 @@ def playlist(url, output, quality, max_downloads, info_only):
 
     \b
     Examples:
-      yt2mp3 playlist "URL"              # Download entire playlist
-      yt2mp3 playlist "URL" -n 5         # Download first 5 videos
-      yt2mp3 playlist "URL" --info       # Just show playlist contents
+      grabbo playlist "URL"              # Download entire playlist
+      grabbo playlist "URL" -n 5         # Download first 5 videos
+      grabbo playlist "URL" --info       # Just show playlist contents
     """
     click.echo("Fetching playlist info...")
 
@@ -404,10 +400,10 @@ def trim(file, trim_all, start, end, threshold):
 
     \b
     Examples:
-      yt2mp3 trim "song.mp3"           # Trim a specific file
-      yt2mp3 trim --all                # Trim all files in output dir
-      yt2mp3 trim song.mp3 --no-end    # Only trim start
-      yt2mp3 trim song.mp3 -t -40      # More aggressive threshold
+      grabbo trim "song.mp3"           # Trim a specific file
+      grabbo trim --all                # Trim all files in output dir
+      grabbo trim song.mp3 --no-end    # Only trim start
+      grabbo trim song.mp3 -t -40      # More aggressive threshold
     """
     if not file and not trim_all:
         click.echo("Specify a file or use --all to trim all files.")
@@ -462,14 +458,14 @@ def transcript(url, output, lang, fmt, no_auto, max_downloads, info_only):
 
     \b
     Downloads captions only (no audio).
-    Saves to ~/yt2mp3-transcripts/{creator}/{playlist}/ by default.
+    Saves to ~/grabbo-transcripts/{creator}/{playlist}/ by default.
 
     \b
     Examples:
-      yt2mp3 transcript "URL"                    # Download as plain text
-      yt2mp3 transcript "URL" -f srt             # Download as SRT subtitles
-      yt2mp3 transcript "URL" -f json            # Download with timestamps
-      yt2mp3 transcript "PLAYLIST_URL" -n 10    # First 10 videos from playlist
+      grabbo transcript "URL"                    # Download as plain text
+      grabbo transcript "URL" -f srt             # Download as SRT subtitles
+      grabbo transcript "URL" -f json            # Download with timestamps
+      grabbo transcript "PLAYLIST_URL" -n 10    # First 10 videos from playlist
     """
     output_dir = Path(output) if output else None
     include_auto = not no_auto

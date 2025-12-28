@@ -4,8 +4,8 @@ from pathlib import Path
 
 import yt_dlp
 
-CONFIG_FILE = Path.home() / ".yt2mp3_config.json"
-DEFAULT_OUTPUT_DIR = Path.home() / "yt2mp3"
+CONFIG_FILE = Path.home() / ".grabbo_config.json"
+DEFAULT_OUTPUT_DIR = Path.home() / "grabbo"
 
 
 def get_output_dir() -> Path:
@@ -411,7 +411,7 @@ def download_playlist(
 
 def get_transcript_dir() -> Path:
     """Get the transcripts output directory."""
-    return get_output_dir().parent / "yt2mp3-transcripts"
+    return get_output_dir().parent / "grabbo-transcripts"
 
 
 def _sanitize_path_component(name: str, max_length: int = 100) -> str:
@@ -437,7 +437,7 @@ def download_transcript(
 
     Args:
         url: YouTube video URL
-        output_dir: Output directory (defaults to ~/yt2mp3-transcripts/{creator})
+        output_dir: Output directory (defaults to ~/grabbo-transcripts/{creator})
         language: Preferred language code (default: en)
         include_auto: Include auto-generated captions if manual not available
         format: Output format - "txt" (plain text), "srt" (subtitles), or "json" (with timestamps)
@@ -627,7 +627,7 @@ def download_playlist_transcripts(
 
     Args:
         url: Playlist URL
-        output_dir: Output directory (defaults to ~/yt2mp3-transcripts/{creator}/{playlist})
+        output_dir: Output directory (defaults to ~/grabbo-transcripts/{creator}/{playlist})
         language: Preferred language code
         include_auto: Include auto-generated captions
         format: Output format (txt, srt, json)
