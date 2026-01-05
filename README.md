@@ -18,7 +18,24 @@ pip install -e .
 
 ## Usage
 
-### Download audio
+### Clipboard watcher
+
+The easiest way to use grabbo - just copy any YouTube URL and it downloads automatically:
+
+```bash
+# Auto-download mode - copies trigger downloads
+grabbo watch -y
+
+# Interactive mode - prompts before each download
+grabbo watch
+
+# With quality option
+grabbo watch -y -q 320
+```
+
+Keep a terminal running with `grabbo watch -y`, then copy any YouTube URL from your browser.
+
+### Download a single video
 
 ```bash
 grabbo download "https://youtube.com/watch?v=..."
@@ -97,21 +114,6 @@ grabbo batch -f urls.txt
 
 # Combine both
 grabbo batch "url1" -f more_urls.txt -q 320
-```
-
-### Clipboard watcher
-
-Auto-detect YouTube URLs when you copy them:
-
-```bash
-# Interactive mode - prompts before each download
-grabbo watch
-
-# Auto-download mode - no prompts
-grabbo watch -y
-
-# With options
-grabbo watch -y -q 320
 ```
 
 ### Trim silence
@@ -193,11 +195,11 @@ grabbo open
 
 | Command | Description |
 |---------|-------------|
+| `watch` | Watch clipboard for YouTube URLs |
 | `download` / `d` | Download a YouTube video as MP3 |
 | `search` | Search YouTube and download results |
 | `playlist` | Download entire playlists |
 | `batch` | Download multiple videos |
-| `watch` | Watch clipboard for YouTube URLs |
 | `trim` | Remove silence from start/end of files |
 | `transcript` / `t` | Download captions/transcripts only |
 | `list` | List downloaded MP3 files |
