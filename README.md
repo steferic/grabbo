@@ -11,7 +11,7 @@ Requires Python 3.10+ and ffmpeg.
 brew install ffmpeg
 
 # Clone and install
-git clone https://github.com/stefanlenoach/grabbo.git
+git clone https://github.com/steferic/grabbo.git
 cd grabbo
 pip install -e .
 ```
