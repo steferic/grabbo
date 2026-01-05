@@ -1,15 +1,6 @@
 # grabbo
 
-Download audio from YouTube, SoundCloud, Bandcamp, and 1800+ sites.
-
-## Supported Sites
-
-- YouTube (videos, playlists, shorts, music)
-- SoundCloud (tracks, playlists, users)
-- Bandcamp (tracks, albums, artists)
-- Mixcloud (mixes, podcasts)
-- Vimeo, TikTok, Twitter/X, Instagram, Twitch
-- And 1800+ more via [yt-dlp](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md)
+Download YouTube videos as MP3 files from the command line.
 
 ## Installation
 
@@ -31,8 +22,6 @@ pip install -e .
 
 ```bash
 grabbo download "https://youtube.com/watch?v=..."
-grabbo download "https://soundcloud.com/artist/track"
-grabbo download "https://artist.bandcamp.com/track/song"
 
 # Or use the shortcut
 grabbo d "URL"
@@ -65,7 +54,7 @@ grabbo d "URL" -s 1m30s -d 30s
 grabbo d "URL" -s 1:02:30 -e 1:05:00
 ```
 
-### Search and download (YouTube)
+### Search and download
 
 Search YouTube without needing a URL:
 
@@ -82,14 +71,13 @@ grabbo search "query" -n 20
 
 ### Playlist downloads
 
-Download entire playlists (YouTube, SoundCloud, Bandcamp):
+Download entire YouTube playlists:
 
 ```bash
-# Download all tracks in a playlist
+# Download all videos in a playlist
 grabbo playlist "https://youtube.com/playlist?list=..."
-grabbo playlist "https://soundcloud.com/artist/sets/playlist-name"
 
-# Download first 5 tracks only
+# Download first 5 videos only
 grabbo playlist "URL" -n 5
 
 # Preview playlist contents without downloading
@@ -98,7 +86,7 @@ grabbo playlist "URL" --info
 
 ### Batch downloads
 
-Download multiple URLs at once:
+Download multiple videos at once:
 
 ```bash
 # Multiple URLs as arguments
@@ -113,7 +101,7 @@ grabbo batch "url1" -f more_urls.txt -q 320
 
 ### Clipboard watcher
 
-Auto-detect URLs when you copy them:
+Auto-detect YouTube URLs when you copy them:
 
 ```bash
 # Interactive mode - prompts before each download
@@ -125,8 +113,6 @@ grabbo watch -y
 # With options
 grabbo watch -y -q 320
 ```
-
-Supports YouTube, SoundCloud, Bandcamp, Mixcloud, Vimeo, TikTok, Twitter/X, Instagram, and Twitch URLs.
 
 ### Trim silence
 
@@ -207,11 +193,11 @@ grabbo open
 
 | Command | Description |
 |---------|-------------|
-| `download` / `d` | Download audio from any supported URL |
+| `download` / `d` | Download a YouTube video as MP3 |
 | `search` | Search YouTube and download results |
 | `playlist` | Download entire playlists |
-| `batch` | Download multiple URLs |
-| `watch` | Watch clipboard for URLs |
+| `batch` | Download multiple videos |
+| `watch` | Watch clipboard for YouTube URLs |
 | `trim` | Remove silence from start/end of files |
 | `transcript` / `t` | Download captions/transcripts only |
 | `list` | List downloaded MP3 files |
