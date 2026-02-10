@@ -114,7 +114,7 @@ def download_as_mp3(
         elif progress_callback and d["status"] == "finished":
             progress_callback(1, 1, finished=True)
 
-    # Build time range for clipping using yt-dlp's download_ranges
+    # Build clip timing.
     clip_info = None
     if start_time or duration or end_time:
         start_secs = parse_time(start_time) if start_time else 0
@@ -124,6 +124,8 @@ def download_as_mp3(
             end_secs = parse_time(end_time)
         else:
             end_secs = None
+        if end_secs is not None and end_secs < start_secs:
+            raise ValueError("end_time must be greater than or equal to start_time")
         clip_info = (start_secs, end_secs)
 
     ydl_opts = {
@@ -139,17 +141,16 @@ def download_as_mp3(
         "progress_hooks": [progress_hook],
     }
 
-    # Use external_downloader_args for time-based clipping
+    # Apply clipping at audio extraction time so output MP3 length is correct.
     if clip_info:
         start_secs, end_secs = clip_info
-        ffmpeg_args = []
+        ffmpeg_args: list[str] = []
         if start_secs > 0:
             ffmpeg_args.extend(["-ss", str(start_secs)])
         if end_secs is not None:
-            ffmpeg_args.extend(["-to", str(end_secs)])
+            ffmpeg_args.extend(["-t", str(end_secs - start_secs)])
         if ffmpeg_args:
-            ydl_opts["external_downloader"] = "ffmpeg"
-            ydl_opts["external_downloader_args"] = {"ffmpeg_i": ffmpeg_args}
+            ydl_opts["postprocessor_args"] = {"extractaudio+ffmpeg_i": ffmpeg_args}
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
