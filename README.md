@@ -78,7 +78,7 @@ grabbo audio "URL" -s 1:02:30 -e 1:05:00
 
 ```bash
 -o, --output PATH       Output directory
--r, --resolution        Cap on height: 480, 720, 1080, 1440, 2160 (default: best)
+-r, --resolution        Cap on height: 480, 720, 1080, 1440, 2160 (4K), 4320 (8K) (default: best)
 -c, --container         mp4 (default) or webm
 -n, --name              Custom filename
 -s, --start             Start time
