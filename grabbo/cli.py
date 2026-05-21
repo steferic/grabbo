@@ -54,7 +54,7 @@ def download(url, output, quality, name, start_time, duration, end_time):
         elif end_time:
             time_info += f", end={end_time}"
         click.echo(time_info)
-    click.echo(f"Output: {output_dir or downloader.get_output_dir()}")
+    click.echo(f"Output: {output_dir or downloader.get_audio_dir()}")
     click.echo()
 
     with click.progressbar(length=100, label="Downloading") as bar:
@@ -211,7 +211,7 @@ def audio(url, output, quality, name, start_time, duration, end_time, max_downlo
         elif end_time:
             time_info += f", end={end_time}"
         click.echo(time_info)
-    click.echo(f"Output: {output_dir or downloader.get_output_dir()}")
+    click.echo(f"Output: {output_dir or downloader.get_audio_dir()}")
     click.echo()
 
     try:
@@ -282,7 +282,7 @@ def video(url, output, resolution, container, name, start_time, duration, end_ti
         elif end_time:
             time_info += f", end={end_time}"
         click.echo(time_info)
-    click.echo(f"Output: {output_dir or downloader.get_output_dir()}")
+    click.echo(f"Output: {output_dir or downloader.get_video_dir()}")
     click.echo()
 
     try:
@@ -360,7 +360,7 @@ def batch(urls, file_path, output, quality):
 
     click.echo(f"Downloading {total} videos...")
     click.echo(f"Quality: {quality_int} kbps")
-    click.echo(f"Output: {output_dir or downloader.get_output_dir()}")
+    click.echo(f"Output: {output_dir or downloader.get_audio_dir()}")
     click.echo()
 
     for i, url in enumerate(url_list, 1):
@@ -388,15 +388,17 @@ def batch(urls, file_path, output, quality):
 
 @cli.command("list")
 @click.option("-n", "--count", default=20, help="Number of files to show")
-def list_files(count):
-    """List downloaded MP3 files."""
-    files = downloader.list_downloads()
+@click.option("-k", "--kind", type=click.Choice(["audio", "video"]), default="audio", help="Which media kind to list")
+def list_files(count, kind):
+    """List downloaded files for a given kind (default: audio)."""
+    files = downloader.list_downloads(kind=kind)
+    dir_path = downloader.get_audio_dir() if kind == "audio" else downloader.get_video_dir()
 
     if not files:
-        click.echo(f"No MP3 files in {downloader.get_output_dir()}")
+        click.echo(f"No {kind} files in {dir_path}")
         return
 
-    click.echo(f"MP3 files in {downloader.get_output_dir()}:\n")
+    click.echo(f"{kind.capitalize()} files in {dir_path}:\n")
     for f in files[:count]:
         click.echo(f"  {f['size_mb']:>6.1f} MB  {f['name']}")
 
@@ -416,13 +418,22 @@ def set_dir(path):
 @cli.command("config")
 def show_config():
     """Show current configuration."""
-    output_dir = downloader.get_output_dir()
-    click.echo(f"Output directory: {output_dir}")
+    base_dir = downloader.get_output_dir()
+    click.echo(f"Base directory: {base_dir}")
+    click.echo()
 
-    files = downloader.list_downloads()
-    total_size = sum(f["size_mb"] for f in files)
-    click.echo(f"Total files: {len(files)}")
-    click.echo(f"Total size: {total_size:.1f} MB")
+    for kind in ("audio", "video"):
+        files = downloader.list_downloads(kind=kind)
+        total_size = sum(f["size_mb"] for f in files)
+        sub = base_dir / kind
+        click.echo(f"  {kind:<11} {len(files):>4} files  {total_size:>7.1f} MB  ({sub})")
+
+    transcripts_dir = downloader.get_transcript_dir()
+    if transcripts_dir.exists():
+        transcript_count = sum(1 for _ in transcripts_dir.rglob("*.*"))
+    else:
+        transcript_count = 0
+    click.echo(f"  {'transcripts':<11} {transcript_count:>4} files            ({transcripts_dir})")
 
 
 @cli.command("open")
@@ -459,7 +470,7 @@ def watch(quality, output, yes, interval):
 
     click.echo("Watching clipboard for YouTube URLs...")
     click.echo(f"Quality: {quality_int} kbps")
-    click.echo(f"Output: {output_dir or downloader.get_output_dir()}")
+    click.echo(f"Output: {output_dir or downloader.get_audio_dir()}")
     if yes:
         click.echo("Auto-download: ON")
     click.echo("Press Ctrl+C to stop.\n")
@@ -644,7 +655,7 @@ def trim(file, trim_all, start, end, threshold):
     files_to_trim = []
 
     if trim_all:
-        output_dir = downloader.get_output_dir()
+        output_dir = downloader.get_audio_dir()
         files_to_trim = list(output_dir.glob("*.mp3"))
         if not files_to_trim:
             click.echo(f"No MP3 files found in {output_dir}")
@@ -690,7 +701,7 @@ def transcript(url, output, lang, fmt, no_auto, max_downloads, info_only):
 
     \b
     Downloads captions only (no audio).
-    Saves to ~/grabbo-transcripts/{creator}/{playlist}/ by default.
+    Saves to ~/grabbo/transcripts/{creator}/{playlist}/ by default.
 
     \b
     Examples:

@@ -179,9 +179,9 @@ grabbo t "PLAYLIST_URL" --info
 grabbo t "URL" -l es    # Spanish
 ```
 
-Transcripts are organized by creator and playlist:
+Transcripts are organized by creator and playlist under the base dir:
 ```
-~/grabbo-transcripts/
+~/grabbo/transcripts/
 ├── Huberman Lab/
 │   └── Huberman Lab Podcast/
 │       ├── Episode 1.txt
@@ -191,19 +191,33 @@ Transcripts are organized by creator and playlist:
         └── Interview.txt
 ```
 
+### Default folder layout
+
+Everything lives under one base directory (default: `~/grabbo`), with one subfolder per kind:
+
+```
+~/grabbo/
+├── audio/         # MP3s from `grabbo audio` / `download` / `batch` / `playlist` / `watch`
+├── video/         # videos from `grabbo video`
+└── transcripts/   # captions from `grabbo transcript`, nested by creator/playlist
+```
+
+`grabbo set-dir` changes the base, not a single kind's dir.
+
 ### Manage downloads
 
 ```bash
-# List downloaded files
+# List downloaded files (audio by default)
 grabbo list
+grabbo list -k video         # List video files instead
 
-# Show current config
+# Show current config (counts per kind)
 grabbo config
 
-# Change default output directory (default: ~/grabbo)
-grabbo set-dir ~/Music/Downloads
+# Change base output directory (default: ~/grabbo)
+grabbo set-dir ~/Media
 
-# Open output folder in Finder
+# Open base folder in Finder
 grabbo open
 ```
 
@@ -219,7 +233,7 @@ grabbo open
 | `playlist` | Download entire playlists as MP3 |
 | `batch` | Download multiple videos as MP3 |
 | `trim` | Remove silence from start/end of files |
-| `list` | List downloaded MP3 files |
+| `list` | List downloaded files (`-k audio` default, `-k video`) |
 | `config` | Show current configuration |
-| `set-dir` | Set default output directory |
+| `set-dir` | Set the base output directory |
 | `open` | Open output directory in Finder |

@@ -9,36 +9,58 @@ DEFAULT_OUTPUT_DIR = Path.home() / "grabbo"
 
 
 def get_output_dir() -> Path:
-    """Get the configured output directory."""
+    """Get the configured base directory (contains audio/, video/, transcripts/)."""
     if CONFIG_FILE.exists():
         config = json.loads(CONFIG_FILE.read_text())
         return Path(config.get("output_dir", DEFAULT_OUTPUT_DIR))
     return DEFAULT_OUTPUT_DIR
 
 
+def get_audio_dir() -> Path:
+    return get_output_dir() / "audio"
+
+
+def get_video_dir() -> Path:
+    return get_output_dir() / "video"
+
+
 def set_output_dir(path: Path) -> None:
-    """Set the output directory."""
+    """Set the base output directory."""
     path = path.expanduser().resolve()
     path.mkdir(parents=True, exist_ok=True)
     config = {"output_dir": str(path)}
     CONFIG_FILE.write_text(json.dumps(config, indent=2))
 
 
-def list_downloads() -> list[dict]:
-    """List all MP3 files in the output directory."""
-    output_dir = get_output_dir()
-    if not output_dir.exists():
+_KIND_PATTERNS = {
+    "audio": ("audio", ["*.mp3"]),
+    "video": ("video", ["*.mp4", "*.webm", "*.mkv"]),
+}
+
+
+def list_downloads(kind: str = "audio") -> list[dict]:
+    """List downloaded files for a kind ('audio' or 'video')."""
+    if kind not in _KIND_PATTERNS:
+        raise ValueError(f"Unknown kind: {kind!r}. Use 'audio' or 'video'.")
+
+    subdir, patterns = _KIND_PATTERNS[kind]
+    base = get_output_dir() / subdir
+    if not base.exists():
         return []
 
-    files = []
-    for f in sorted(output_dir.glob("*.mp3"), key=lambda x: x.stat().st_mtime, reverse=True):
-        stat = f.stat()
-        files.append({
+    matches: list[Path] = []
+    for pattern in patterns:
+        matches.extend(base.glob(pattern))
+    matches.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+
+    return [
+        {
             "name": f.name,
-            "size_mb": round(stat.st_size / (1024 * 1024), 2),
+            "size_mb": round(f.stat().st_size / (1024 * 1024), 2),
             "path": str(f),
-        })
-    return files
+        }
+        for f in matches
+    ]
 
 
 def parse_time(time_str: str) -> float:
@@ -127,7 +149,7 @@ def download_as_mp3(
     - end_time: Where to end (alternative to duration)
     """
     if output_dir is None:
-        output_dir = get_output_dir()
+        output_dir = get_audio_dir()
 
     output_dir = Path(output_dir).expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -197,7 +219,7 @@ def download_as_video(
         start_time/duration/end_time: Same clip flags as download_as_mp3.
     """
     if output_dir is None:
-        output_dir = get_output_dir()
+        output_dir = get_video_dir()
 
     output_dir = Path(output_dir).expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -459,7 +481,7 @@ def download_playlist(
         List of successfully downloaded file paths
     """
     if output_dir is None:
-        output_dir = get_output_dir()
+        output_dir = get_audio_dir()
 
     output_dir = Path(output_dir).expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -504,7 +526,7 @@ def download_playlist_videos(
 ) -> list[Path]:
     """Download all videos from a playlist as video files."""
     if output_dir is None:
-        output_dir = get_output_dir()
+        output_dir = get_video_dir()
 
     output_dir = Path(output_dir).expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -541,7 +563,7 @@ def download_playlist_videos(
 
 def get_transcript_dir() -> Path:
     """Get the transcripts output directory."""
-    return get_output_dir().parent / "grabbo-transcripts"
+    return get_output_dir() / "transcripts"
 
 
 def _sanitize_path_component(name: str, max_length: int = 100) -> str:
@@ -567,7 +589,7 @@ def download_transcript(
 
     Args:
         url: YouTube video URL
-        output_dir: Output directory (defaults to ~/grabbo-transcripts/{creator})
+        output_dir: Output directory (defaults to ~/grabbo/transcripts/{creator})
         language: Preferred language code (default: en)
         include_auto: Include auto-generated captions if manual not available
         format: Output format - "txt" (plain text), "srt" (subtitles), or "json" (with timestamps)
@@ -757,7 +779,7 @@ def download_playlist_transcripts(
 
     Args:
         url: Playlist URL
-        output_dir: Output directory (defaults to ~/grabbo-transcripts/{creator}/{playlist})
+        output_dir: Output directory (defaults to ~/grabbo/transcripts/{creator}/{playlist})
         language: Preferred language code
         include_auto: Include auto-generated captions
         format: Output format (txt, srt, json)
