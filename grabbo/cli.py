@@ -7,14 +7,21 @@ from . import downloader
 
 @click.group()
 def cli():
-    """Download audio from YouTube, SoundCloud, Bandcamp, and 1800+ sites.
+    """Download audio, video, or transcripts from YouTube and 1800+ sites.
 
-    Usage: grabbo download <url>
+    \b
+    Usage:
+      grabbo audio <url>        # Download as MP3
+      grabbo video <url>        # Download as video file
+      grabbo transcript <url>   # Download captions
 
-    Supports YouTube, SoundCloud, Bandcamp, Mixcloud, Vimeo, TikTok,
-    Twitter/X, Instagram, Twitch, and many more.
+    Each command auto-detects playlist URLs.
     """
     pass
+
+
+def _is_playlist_url(url: str) -> bool:
+    return "playlist" in url.lower() or "list=" in url
 
 
 @cli.command("download")
@@ -26,7 +33,7 @@ def cli():
 @click.option("-d", "--duration", help="Duration to capture (e.g., 20, 20s, 1:00)")
 @click.option("-e", "--end", "end_time", help="End time (alternative to duration)")
 def download(url, output, quality, name, start_time, duration, end_time):
-    """Download a YouTube video as MP3.
+    """Download a YouTube video as MP3 (alias for `grabbo audio`).
 
     \b
     Examples:
@@ -96,6 +103,226 @@ def download_alias(ctx, url, output, quality, name, start_time, duration, end_ti
     """Shortcut for 'download' command."""
     ctx.invoke(download, url=url, output=output, quality=quality, name=name,
                start_time=start_time, duration=duration, end_time=end_time)
+
+
+def _download_with_progress(label, fn, **kwargs):
+    """Run a single-video download with a progress bar."""
+    with click.progressbar(length=100, label=label) as bar:
+        last_percent = [0]
+
+        def progress_callback(downloaded, total, finished=False):
+            if finished:
+                bar.update(100 - last_percent[0])
+            elif total > 0:
+                percent = int((downloaded / total) * 100)
+                delta = percent - last_percent[0]
+                if delta > 0:
+                    bar.update(delta)
+                    last_percent[0] = percent
+
+        return fn(progress_callback=progress_callback, **kwargs)
+
+
+def _run_playlist(url, label, downloader_fn, **kwargs):
+    """Shared playlist runner. downloader_fn is a download_playlist* function."""
+    click.echo("Fetching playlist info...")
+    try:
+        info = downloader.get_playlist_info(url)
+    except Exception as e:
+        click.secho(f"Error: {e}", fg="red")
+        raise SystemExit(1)
+
+    click.echo(f"\nPlaylist: {info['title']}")
+    click.echo(f"Channel: {info['channel']}")
+    click.echo(f"Videos: {info['count']}")
+
+    max_downloads = kwargs.get("max_downloads")
+    entries = info["entries"]
+    if max_downloads:
+        entries = entries[:max_downloads]
+        click.echo(f"Downloading first {max_downloads} {label}...")
+    else:
+        click.echo(f"Downloading {len(entries)} {label}...")
+
+    click.echo()
+
+    succeeded = 0
+    failed = 0
+
+    def on_progress(idx, total, title, result):
+        nonlocal succeeded, failed
+        if isinstance(result, Exception):
+            click.echo(f"[{idx}/{total}] {title}")
+            click.secho(f"  Error: {result}", fg="red")
+            failed += 1
+        else:
+            click.echo(f"[{idx}/{total}] {title}")
+            click.secho(f"  -> {result.name}", fg="green")
+            succeeded += 1
+
+    downloader_fn(url=url, progress_callback=on_progress, **kwargs)
+
+    click.echo()
+    click.echo(f"Completed: {succeeded}/{succeeded + failed} succeeded")
+
+
+@cli.command("audio")
+@click.argument("url")
+@click.option("-o", "--output", type=click.Path(), help="Output directory")
+@click.option("-q", "--quality", type=click.Choice(["128", "192", "320"]), default="192", help="Audio quality in kbps")
+@click.option("-n", "--name", help="Custom filename (single video only)")
+@click.option("-s", "--start", "start_time", help="Start time (e.g., 12, 1:30, 1m30s)")
+@click.option("-d", "--duration", help="Duration to capture (e.g., 20, 20s, 1:00)")
+@click.option("-e", "--end", "end_time", help="End time (alternative to duration)")
+@click.option("-N", "--max", "max_downloads", type=int, help="Max videos when URL is a playlist")
+def audio(url, output, quality, name, start_time, duration, end_time, max_downloads):
+    """Download as audio (MP3). Auto-detects playlist URLs.
+
+    \b
+    Examples:
+      grabbo audio "URL"                    # Single video
+      grabbo audio "URL" -s 12 -d 20        # Clip 20s starting at 0:12
+      grabbo audio "PLAYLIST_URL"           # Entire playlist
+      grabbo audio "PLAYLIST_URL" -N 5      # First 5 of playlist
+    """
+    output_dir = Path(output) if output else None
+    quality_int = int(quality)
+
+    if _is_playlist_url(url):
+        if start_time or duration or end_time:
+            click.secho("Clip flags (-s/-d/-e) are not supported for playlists.", fg="red")
+            raise SystemExit(1)
+        _run_playlist(
+            url,
+            "videos",
+            downloader.download_playlist,
+            output_dir=output_dir,
+            quality=quality_int,
+            max_downloads=max_downloads,
+        )
+        return
+
+    click.echo(f"Downloading: {url}")
+    click.echo(f"Quality: {quality_int} kbps")
+    if start_time or duration or end_time:
+        time_info = f"Clip: start={start_time or '0'}"
+        if duration:
+            time_info += f", duration={duration}"
+        elif end_time:
+            time_info += f", end={end_time}"
+        click.echo(time_info)
+    click.echo(f"Output: {output_dir or downloader.get_output_dir()}")
+    click.echo()
+
+    try:
+        result_path = _download_with_progress(
+            "Downloading",
+            downloader.download_as_mp3,
+            url=url,
+            output_dir=output_dir,
+            quality=quality_int,
+            filename=name,
+            start_time=start_time,
+            duration=duration,
+            end_time=end_time,
+        )
+        click.echo()
+        click.secho(f"Saved: {result_path}", fg="green")
+    except Exception as e:
+        click.echo()
+        click.secho(f"Error: {e}", fg="red")
+        raise SystemExit(1)
+
+
+@cli.command("video")
+@click.argument("url")
+@click.option("-o", "--output", type=click.Path(), help="Output directory")
+@click.option("-r", "--resolution", type=click.Choice(["480", "720", "1080", "1440", "2160"]), help="Max vertical resolution (default: best)")
+@click.option("-c", "--container", type=click.Choice(["mp4", "webm"]), default="mp4", help="Output container")
+@click.option("-n", "--name", help="Custom filename (single video only)")
+@click.option("-s", "--start", "start_time", help="Start time (e.g., 12, 1:30, 1m30s)")
+@click.option("-d", "--duration", help="Duration to capture (e.g., 20, 20s, 1:00)")
+@click.option("-e", "--end", "end_time", help="End time (alternative to duration)")
+@click.option("-N", "--max", "max_downloads", type=int, help="Max videos when URL is a playlist")
+def video(url, output, resolution, container, name, start_time, duration, end_time, max_downloads):
+    """Download as a video file. Auto-detects playlist URLs.
+
+    \b
+    Examples:
+      grabbo video "URL"                    # Best available
+      grabbo video "URL" -r 720             # Cap at 720p
+      grabbo video "URL" -s 1:30 -e 2:00    # Clip from 1:30 to 2:00
+      grabbo video "PLAYLIST_URL" -N 5      # First 5 of playlist
+    """
+    output_dir = Path(output) if output else None
+    resolution_int = int(resolution) if resolution else None
+
+    if _is_playlist_url(url):
+        if start_time or duration or end_time:
+            click.secho("Clip flags (-s/-d/-e) are not supported for playlists.", fg="red")
+            raise SystemExit(1)
+        _run_playlist(
+            url,
+            "videos",
+            downloader.download_playlist_videos,
+            output_dir=output_dir,
+            resolution=resolution_int,
+            container=container,
+            max_downloads=max_downloads,
+        )
+        return
+
+    click.echo(f"Downloading: {url}")
+    click.echo(f"Resolution: {resolution_int or 'best'}")
+    click.echo(f"Container: {container}")
+    if start_time or duration or end_time:
+        time_info = f"Clip: start={start_time or '0'}"
+        if duration:
+            time_info += f", duration={duration}"
+        elif end_time:
+            time_info += f", end={end_time}"
+        click.echo(time_info)
+    click.echo(f"Output: {output_dir or downloader.get_output_dir()}")
+    click.echo()
+
+    try:
+        result_path = _download_with_progress(
+            "Downloading",
+            downloader.download_as_video,
+            url=url,
+            output_dir=output_dir,
+            resolution=resolution_int,
+            container=container,
+            filename=name,
+            start_time=start_time,
+            duration=duration,
+            end_time=end_time,
+        )
+        click.echo()
+        click.secho(f"Saved: {result_path}", fg="green")
+    except Exception as e:
+        click.echo()
+        click.secho(f"Error: {e}", fg="red")
+        raise SystemExit(1)
+
+
+# Short alias 'v' for video
+@cli.command("v")
+@click.argument("url")
+@click.option("-o", "--output", type=click.Path())
+@click.option("-r", "--resolution", type=click.Choice(["480", "720", "1080", "1440", "2160"]))
+@click.option("-c", "--container", type=click.Choice(["mp4", "webm"]), default="mp4")
+@click.option("-n", "--name")
+@click.option("-s", "--start", "start_time")
+@click.option("-d", "--duration")
+@click.option("-e", "--end", "end_time")
+@click.option("-N", "--max", "max_downloads", type=int)
+@click.pass_context
+def video_alias(ctx, url, output, resolution, container, name, start_time, duration, end_time, max_downloads):
+    """Shortcut for 'video' command."""
+    ctx.invoke(video, url=url, output=output, resolution=resolution, container=container,
+               name=name, start_time=start_time, duration=duration, end_time=end_time,
+               max_downloads=max_downloads)
 
 
 @cli.command("batch")
@@ -326,7 +553,12 @@ def search(query, count, download_idx, quality):
 @click.option("-n", "--max", "max_downloads", type=int, help="Max videos to download")
 @click.option("--info", "info_only", is_flag=True, help="Show playlist info without downloading")
 def playlist(url, output, quality, max_downloads, info_only):
-    """Download an entire YouTube playlist.
+    """Download an entire YouTube playlist as MP3.
+
+    \b
+    Note: `grabbo audio PLAYLIST_URL` and `grabbo video PLAYLIST_URL`
+    now auto-detect playlists too. This command stays for back-compat
+    and the --info preview.
 
     \b
     Examples:

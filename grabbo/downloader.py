@@ -77,6 +77,38 @@ def parse_time(time_str: str) -> float:
     return float(time_str.rstrip("s"))
 
 
+def _parse_clip_seconds(
+    start_time: str | None,
+    duration: str | None,
+    end_time: str | None,
+) -> tuple[float, float | None] | None:
+    """Convert clip flags to (start_secs, end_secs) or None if no clipping."""
+    if not (start_time or duration or end_time):
+        return None
+    start_secs = parse_time(start_time) if start_time else 0.0
+    if duration:
+        end_secs = start_secs + parse_time(duration)
+    elif end_time:
+        end_secs = parse_time(end_time)
+    else:
+        end_secs = None
+    if end_secs is not None and end_secs < start_secs:
+        raise ValueError("end_time must be greater than or equal to start_time")
+    return (start_secs, end_secs)
+
+
+def _make_progress_hook(progress_callback):
+    def progress_hook(d):
+        if progress_callback and d["status"] == "downloading":
+            total = d.get("total_bytes") or d.get("total_bytes_estimate", 0)
+            downloaded = d.get("downloaded_bytes", 0)
+            if total > 0:
+                progress_callback(downloaded, total)
+        elif progress_callback and d["status"] == "finished":
+            progress_callback(1, 1, finished=True)
+    return progress_hook
+
+
 def download_as_mp3(
     url: str,
     output_dir: Path | None = None,
@@ -105,28 +137,9 @@ def download_as_mp3(
     else:
         output_template = str(output_dir / "%(title)s.%(ext)s")
 
-    def progress_hook(d):
-        if progress_callback and d["status"] == "downloading":
-            total = d.get("total_bytes") or d.get("total_bytes_estimate", 0)
-            downloaded = d.get("downloaded_bytes", 0)
-            if total > 0:
-                progress_callback(downloaded, total)
-        elif progress_callback and d["status"] == "finished":
-            progress_callback(1, 1, finished=True)
+    progress_hook = _make_progress_hook(progress_callback)
 
-    # Build clip timing.
-    clip_info = None
-    if start_time or duration or end_time:
-        start_secs = parse_time(start_time) if start_time else 0
-        if duration:
-            end_secs = start_secs + parse_time(duration)
-        elif end_time:
-            end_secs = parse_time(end_time)
-        else:
-            end_secs = None
-        if end_secs is not None and end_secs < start_secs:
-            raise ValueError("end_time must be greater than or equal to start_time")
-        clip_info = (start_secs, end_secs)
+    clip_info = _parse_clip_seconds(start_time, duration, end_time)
 
     ydl_opts = {
         "format": "bestaudio/best",
@@ -161,6 +174,77 @@ def download_as_mp3(
         else:
             safe_title = ydl.prepare_filename(info)
             final_path = Path(safe_title).with_suffix(".mp3")
+
+    return final_path
+
+
+def download_as_video(
+    url: str,
+    output_dir: Path | None = None,
+    resolution: int | None = None,
+    container: str = "mp4",
+    filename: str | None = None,
+    progress_callback=None,
+    start_time: str | None = None,
+    duration: str | None = None,
+    end_time: str | None = None,
+) -> Path:
+    """Download a YouTube video as a video file.
+
+    Args:
+        resolution: Cap on vertical resolution (e.g., 720, 1080). None = best available.
+        container: Output container - "mp4" or "webm".
+        start_time/duration/end_time: Same clip flags as download_as_mp3.
+    """
+    if output_dir is None:
+        output_dir = get_output_dir()
+
+    output_dir = Path(output_dir).expanduser().resolve()
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    if filename:
+        output_template = str(output_dir / f"{filename}.%(ext)s")
+    else:
+        output_template = str(output_dir / "%(title)s.%(ext)s")
+
+    progress_hook = _make_progress_hook(progress_callback)
+
+    clip_info = _parse_clip_seconds(start_time, duration, end_time)
+
+    height_filter = f"[height<={resolution}]" if resolution else ""
+    fmt = (
+        f"bestvideo{height_filter}[ext={container}]+bestaudio[ext=m4a]"
+        f"/bestvideo{height_filter}+bestaudio"
+        f"/best{height_filter}"
+    )
+
+    ydl_opts = {
+        "format": fmt,
+        "merge_output_format": container,
+        "outtmpl": output_template,
+        "quiet": True,
+        "no_warnings": True,
+        "progress_hooks": [progress_hook],
+    }
+
+    if clip_info:
+        start_secs, end_secs = clip_info
+        # download_ranges lets yt-dlp fetch only the requested span (and trims
+        # accurately at keyframes via ffmpeg post-process when needed).
+        effective_end = end_secs if end_secs is not None else None
+        ydl_opts["download_ranges"] = yt_dlp.utils.download_range_func(
+            None, [(start_secs, effective_end)]
+        )
+        ydl_opts["force_keyframes_at_cuts"] = True
+
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(url, download=True)
+
+        if filename:
+            final_path = output_dir / f"{filename}.{container}"
+        else:
+            safe_title = ydl.prepare_filename(info)
+            final_path = Path(safe_title).with_suffix(f".{container}")
 
     return final_path
 
@@ -399,6 +483,51 @@ def download_playlist(
                 url=video_url,
                 output_dir=output_dir,
                 quality=quality,
+            )
+            downloaded.append(path)
+            if progress_callback:
+                progress_callback(i, total, title, path)
+        except Exception as e:
+            if progress_callback:
+                progress_callback(i, total, title, e)
+
+    return downloaded
+
+
+def download_playlist_videos(
+    url: str,
+    output_dir: Path | None = None,
+    resolution: int | None = None,
+    container: str = "mp4",
+    max_downloads: int | None = None,
+    progress_callback=None,
+) -> list[Path]:
+    """Download all videos from a playlist as video files."""
+    if output_dir is None:
+        output_dir = get_output_dir()
+
+    output_dir = Path(output_dir).expanduser().resolve()
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    playlist_info = get_playlist_info(url)
+    entries = playlist_info["entries"]
+
+    if max_downloads:
+        entries = entries[:max_downloads]
+
+    downloaded = []
+    total = len(entries)
+
+    for i, entry in enumerate(entries, 1):
+        video_url = entry["url"]
+        title = entry["title"]
+
+        try:
+            path = download_as_video(
+                url=video_url,
+                output_dir=output_dir,
+                resolution=resolution,
+                container=container,
             )
             downloaded.append(path)
             if progress_callback:

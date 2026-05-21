@@ -1,6 +1,6 @@
 # grabbo
 
-Download YouTube videos as MP3 files from the command line.
+Download audio, video, or transcripts from YouTube and 1800+ sites — from the command line.
 
 ## Installation
 
@@ -35,40 +35,56 @@ grabbo watch -y -q 320
 
 Keep a terminal running with `grabbo watch -y`, then copy any YouTube URL from your browser.
 
-### Download a single video
+### Download audio, video, or transcript
+
+Pick what you want — each command auto-detects playlist URLs:
 
 ```bash
-grabbo download "https://youtube.com/watch?v=..."
-
-# Or use the shortcut
-grabbo d "URL"
+grabbo audio "URL"        # MP3 (also: grabbo d "URL", grabbo download "URL")
+grabbo video "URL"        # video file (also: grabbo v "URL")
+grabbo transcript "URL"   # captions (also: grabbo t "URL")
 ```
 
-### Options
+### Time clipping (audio + video)
 
-```bash
--o, --output PATH    Output directory for this download
--q, --quality        Audio quality: 128, 192 (default), or 320 kbps
--n, --name           Custom filename (without extension)
--s, --start          Start time (e.g., 12, 1:30, 1m30s)
--d, --duration       Duration to capture (e.g., 20, 20s, 1:00)
--e, --end            End time (alternative to duration)
-```
-
-### Time clipping
-
-Extract a specific portion of the audio:
+Extract a specific portion. The clip flags work the same for `audio` and `video`:
 
 ```bash
 # 20 seconds starting at 0:12
-grabbo d "URL" -s 12 -d 20
+grabbo audio "URL" -s 12 -d 20
+grabbo video "URL" -s 12 -d 20
 
 # From 1:30 to 2:00
-grabbo d "URL" -s 1:30 -e 2:00
+grabbo audio "URL" -s 1:30 -e 2:00
 
 # Various time formats work
-grabbo d "URL" -s 1m30s -d 30s
-grabbo d "URL" -s 1:02:30 -e 1:05:00
+grabbo audio "URL" -s 1m30s -d 30s
+grabbo audio "URL" -s 1:02:30 -e 1:05:00
+```
+
+### Audio options
+
+```bash
+-o, --output PATH    Output directory
+-q, --quality        Audio quality: 128, 192 (default), or 320 kbps
+-n, --name           Custom filename (without extension)
+-s, --start          Start time (e.g., 12, 1:30, 1m30s)
+-d, --duration       Duration (e.g., 20, 20s, 1:00)
+-e, --end            End time (alternative to duration)
+-N, --max            Max videos when URL is a playlist
+```
+
+### Video options
+
+```bash
+-o, --output PATH       Output directory
+-r, --resolution        Cap on height: 480, 720, 1080, 1440, 2160 (default: best)
+-c, --container         mp4 (default) or webm
+-n, --name              Custom filename
+-s, --start             Start time
+-d, --duration          Duration
+-e, --end               End time
+-N, --max               Max videos when URL is a playlist
 ```
 
 ### Search and download
@@ -195,13 +211,14 @@ grabbo open
 
 | Command | Description |
 |---------|-------------|
-| `watch` | Watch clipboard for YouTube URLs |
-| `download` / `d` | Download a YouTube video as MP3 |
-| `search` | Search YouTube and download results |
-| `playlist` | Download entire playlists |
-| `batch` | Download multiple videos |
-| `trim` | Remove silence from start/end of files |
+| `audio` / `download` / `d` | Download as MP3 (auto-detects playlists) |
+| `video` / `v` | Download as video file (auto-detects playlists) |
 | `transcript` / `t` | Download captions/transcripts only |
+| `watch` | Watch clipboard for YouTube URLs |
+| `search` | Search YouTube and download results |
+| `playlist` | Download entire playlists as MP3 |
+| `batch` | Download multiple videos as MP3 |
+| `trim` | Remove silence from start/end of files |
 | `list` | List downloaded MP3 files |
 | `config` | Show current configuration |
 | `set-dir` | Set default output directory |
