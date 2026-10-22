@@ -577,6 +577,41 @@ def _sanitize_path_component(name: str, max_length: int = 100) -> str:
     return safe[:max_length] if safe else "Unknown"
 
 
+def _is_translated_track(formats: list[dict]) -> bool:
+    """True if YouTube builds this caption track by machine translation (tlang)."""
+    from urllib.parse import parse_qs, urlparse
+
+    return any("tlang" in parse_qs(urlparse(f.get("url", "")).query) for f in formats)
+
+
+def _caption_candidates(info: dict, language: str, include_auto: bool) -> list[tuple[str, bool]]:
+    """Order the caption tracks to try for a language, best first.
+
+    Returns (track key, is_auto) pairs: manual captions, then the original
+    auto-captions ("en-orig"), then other auto-captions, and translated
+    auto-captions last. Dubbed videos expose "en" as a translation of the dub's
+    language, and YouTube rate-limits those requests.
+    """
+
+    def matches(key: str) -> bool:
+        return key == language or key.startswith(f"{language}-")
+
+    candidates = []
+    manual = info.get("subtitles") or {}
+    candidates += [(k, False) for k in sorted(manual, key=lambda k: k != language) if matches(k) and k != "live_chat"]
+
+    if include_auto:
+        auto = info.get("automatic_captions") or {}
+        keys = [k for k in auto if matches(k)]
+        orig = [k for k in keys if k.endswith("-orig")]
+        rest = sorted((k for k in keys if k not in orig), key=lambda k: k != language)
+        native = [k for k in rest if not _is_translated_track(auto[k])]
+        translated = [k for k in rest if k not in native]
+        candidates += [(k, True) for k in orig + native + translated]
+
+    return candidates
+
+
 def download_transcript(
     url: str,
     output_dir: Path | None = None,
@@ -618,30 +653,47 @@ def download_transcript(
     output_dir = Path(output_dir).expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Download subtitles to temp dir first
+    candidates = _caption_candidates(info, language, include_auto)
+    if not candidates:
+        return None
+
+    # Download subtitles to temp dir first, one track at a time. YouTube often
+    # answers 429 for machine-translated tracks, so fall back to the next one.
     with tempfile.TemporaryDirectory() as temp_dir:
-        sub_opts = {
-            "quiet": True,
-            "no_warnings": True,
-            "skip_download": True,
-            "writesubtitles": True,
-            "writeautomaticsub": include_auto,
-            "subtitleslangs": [language, f"{language}.*"],
-            "subtitlesformat": "vtt",
-            "outtmpl": f"{temp_dir}/%(id)s.%(ext)s",
-        }
-
-        with yt_dlp.YoutubeDL(sub_opts) as ydl:
-            ydl.download([url])
-
-        # Find the downloaded subtitle file
         temp_path = Path(temp_dir)
-        vtt_files = list(temp_path.glob("*.vtt"))
+        vtt_file = None
+        last_error = None
 
-        if not vtt_files:
+        for track, is_auto in candidates:
+            sub_opts = {
+                "quiet": True,
+                "no_warnings": True,
+                "noprogress": True,
+                "skip_download": True,
+                "writesubtitles": not is_auto,
+                "writeautomaticsub": is_auto,
+                "subtitleslangs": [track],
+                "subtitlesformat": "vtt",
+                "outtmpl": f"{temp_dir}/%(id)s.%(ext)s",
+            }
+
+            try:
+                with yt_dlp.YoutubeDL(sub_opts) as ydl:
+                    ydl.download([url])
+            except yt_dlp.utils.DownloadError as e:
+                last_error = e
+                continue
+
+            vtt_files = list(temp_path.glob("*.vtt"))
+            if vtt_files:
+                vtt_file = vtt_files[0]
+                break
+
+        if vtt_file is None:
+            if last_error is not None:
+                raise last_error
             return None
 
-        vtt_file = vtt_files[0]
         vtt_content = vtt_file.read_text(encoding="utf-8")
 
         # Parse and convert based on format
